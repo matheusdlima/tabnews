@@ -9,11 +9,38 @@ async function query(queryObject) {
     password: process.env.POSTGRES_PASSWORD,
   });
   await client.connect();
-  const result = await client.query(queryObject);
-  await client.end();
-  return result;
+
+  try {
+    const result = await client.query(queryObject);
+    return result;
+  } catch (error) {
+    console.error(error);
+  } finally {
+    await client.end();
+  }
+}
+
+async function getPostgresVersion() {
+  const result = await query("SHOW server_version;");
+  return result.rows[0].server_version;
+}
+
+async function getMaxConnections() {
+  const result = await query("SHOW max_connections");
+  return result.rows[0].max_connections;
+}
+
+async function getOpenConnections(databaseName) {
+  const result = await query({
+    text: "SELECT COUNT(*)::int FROM pg_stat_activity WHERE datname = $1;",
+    values: [databaseName],
+  });
+  return result.rows[0].count;
 }
 
 export default {
   query: query,
+  getPostgresVersion: getPostgresVersion,
+  getMaxConnections: getMaxConnections,
+  getOpenConnections: getOpenConnections,
 };
